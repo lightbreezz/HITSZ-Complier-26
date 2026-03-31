@@ -1,4 +1,4 @@
-# 编译原理实验一到实验三实现思路整理
+# 编译原理实验一到实验三实现思路整理（附实验四章节模板）
 
 本文档用于快速写实验报告，内容覆盖实验一（词法分析）、实验二（LR 语法分析驱动）和实验三（语义分析与中间代码生成）。
 
@@ -303,3 +303,120 @@ ProductionCollector 依赖 reduce/accept 回调记录产生式。
 - python scripts/check-result.py 3 data/std data/out
 
 注意：系统默认 java 可能是 Java 8，而 javac 是更高版本，混用会触发 class version 错误。
+
+---
+
+## 7. 实验四章节模板（可直接套写）
+
+下面给出一份可直接复制到实验报告的实验四章节模板。方括号中的内容是提示语，写报告时替换为你的实现细节与结果。
+
+### 7.1 实验目标
+
+- 完成从中间代码到 RISC-V 汇编的转换。
+- 在代码生成过程中实现寄存器分配策略。
+- 生成可在 RARS 上执行并得到正确返回值的汇编程序。
+
+### 7.2 输入与输出
+
+输入：
+
+- 中间代码文件 intermediate_code.txt
+- （可选）用于压力测试寄存器分配的程序，如 reg-alloc.txt
+
+输出：
+
+- 汇编文件 assembly_language.asm
+- 在 RARS 运行的返回值结果（a0）
+
+### 7.3 总体设计思路
+
+[说明你采用的后端流程，建议按以下顺序写]
+
+1. IR 预处理
+- [是否进行了常量折叠]
+- [是否把不便直接映射的 IR 转换为等价形式，如 immediate 乘法/减法的拆分]
+
+2. 寄存器分配
+- [使用了哪些寄存器，如 t0~t6]
+- [寄存器与 IR 变量之间的映射数据结构]
+- [当寄存器不足时的处理策略：回收死变量寄存器 / 其他策略]
+
+3. 汇编生成
+- [MOV 如何映射为 li 或 mv]
+- [ADD/SUB/MUL 如何映射为 addi/add/sub/mul]
+- [RET 如何映射为 mv a0, rs]
+
+### 7.4 关键数据结构
+
+[按你实现填写，可参考以下模板]
+
+- loweredInstructions：预处理后的 IR 列表
+- valueToReg：IRVariable -> Register 映射
+- regToValue：Register -> IRVariable 反向映射
+- asmLines：最终输出的汇编文本行
+
+### 7.5 核心算法描述
+
+#### 7.5.1 IR 预处理算法
+
+[可按伪代码描述]
+
+1. 遍历原始 IR 列表。
+2. 若是二元运算：
+- 两侧均为立即数：常量折叠成 MOV。
+- 不满足目标指令约束时：拆分为 MOV + 运算。
+3. 其余指令直接保留。
+4. 遇到 RET 后可截断后续不可达 IR。
+
+#### 7.5.2 寄存器分配算法
+
+[建议说明“按需分配 + 未来使用回收”的思路]
+
+1. 变量已分配寄存器则直接复用。
+2. 否则优先找空闲寄存器。
+3. 若无空闲，扫描当前指令之后是否还会使用某寄存器中的变量：
+- 不再使用则回收该寄存器给新变量。
+4. 若仍无法分配：
+- [写明你的处理方式：报错 / 溢出到内存（若实现）]
+
+#### 7.5.3 指令翻译规则
+
+- MOV rd, imm -> li rd, imm
+- MOV rd, rs -> mv rd, rs
+- ADD rd, rs, imm -> addi rd, rs, imm
+- ADD rd, rs1, rs2 -> add rd, rs1, rs2
+- SUB rd, rs1, rs2 -> sub rd, rs1, rs2
+- MUL rd, rs1, rs2 -> mul rd, rs1, rs2
+- RET x -> mv a0, reg(x) 或 li a0, imm
+
+### 7.6 结果展示与分析
+
+[建议分三部分写]
+
+1. 汇编输出片段展示
+- [贴出关键几行，尤其是表达式计算与 return 附近]
+
+2. 运行结果
+- [贴出 RARS 运行结果，如 a0 = 144]
+
+3. 正确性说明
+- [说明与中间代码语义一致，返回值正确]
+
+### 7.7 遇到的问题与解决
+
+[可从以下角度选 2-3 点写]
+
+- immediate 运算与目标指令约束不匹配
+- 寄存器不足时如何安全复用
+- 注释与指令对齐便于调试
+- 与前面实验阶段联调时的版本/路径问题
+
+### 7.8 可复用命令
+
+- 编译并运行主程序：
+  D:\JAVA\JDK\bin\javac.exe -encoding UTF-8 -d out <java-files>
+  D:\JAVA\JDK\bin\java.exe -cp out cn.edu.hitsz.compiler.Main
+
+- 用 RARS 运行生成汇编（示例）：
+  D:\JAVA\JDK\bin\java.exe -jar <rars.jar路径> mc CompactDataAtZero a0 nc dec ae255 data/out/assembly_language.asm
+
