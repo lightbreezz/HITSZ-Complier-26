@@ -1,9 +1,11 @@
 package cn.edu.hitsz.compiler.lexer;
 
-import cn.edu.hitsz.compiler.NotImplementedException;
+import cn.edu.hitsz.compiler.NotImplementedException; // 这个理论上可以不要了
 import cn.edu.hitsz.compiler.symtab.SymbolTable;
 import cn.edu.hitsz.compiler.utils.FileUtils;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.StreamSupport;
 
 /**
@@ -31,7 +33,8 @@ public class LexicalAnalyzer {
         // TODO: 词法分析前的缓冲区实现
         // 可自由实现各类缓冲区
         // 或直接采用完整读入方法
-        throw new NotImplementedException();
+        // 这里我直接读取全部的文件，后面再处理
+        sourceCode = FileUtils.readFile(path);
     }
 
     /**
@@ -40,7 +43,71 @@ public class LexicalAnalyzer {
      */
     public void run() {
         // TODO: 自动机实现的词法分析过程
-        throw new NotImplementedException();
+        tokens = new ArrayList<>();
+        // index是当前分析到的字符在源代码中的位置，length是源代码的长度
+        var index = 0;
+        var length = sourceCode.length();
+        while (index < length) {
+            // current是当前分析到的字符
+            var current = sourceCode.charAt(index);
+
+            if (Character.isWhitespace(current)) {
+                // 跳过空白字符
+                index++;
+                continue;
+            }
+            // 标识符
+            if (isStart(current)) {
+                var start = index;
+                index++;
+                // 取这个标识符
+                while (index < length && isPart(sourceCode.charAt(index))) {
+                    index++;
+                }
+                // 词素 (lexeme)
+                var lexeme = sourceCode.substring(start, index);
+                if ("int".equals(lexeme) || "return".equals(lexeme)) {
+                    // int和return是关键字，直接加入token列表，不加入符号表
+                    tokens.add(Token.simple(lexeme));
+                } else {
+                    tokens.add(Token.normal("id", lexeme));
+                    if (!symbolTable.has(lexeme)) {
+                        symbolTable.add(lexeme);
+                    }
+                }
+                continue;
+            }
+            // 数字常量
+            if (Character.isDigit(current)) {
+                var start = index;
+                index++;
+                while (index < length && Character.isDigit(sourceCode.charAt(index))) {
+                    index++;
+                }
+                var number = sourceCode.substring(start, index);
+                tokens.add(Token.normal("IntConst", number));
+                continue;
+            }
+
+            switch (current) {
+                case '=' -> tokens.add(Token.simple("="));
+                case ',' -> tokens.add(Token.simple(","));
+                case ';' -> tokens.add(Token.simple("Semicolon"));
+                case '+' -> tokens.add(Token.simple("+"));
+                case '-' -> tokens.add(Token.simple("-"));
+                case '*' -> tokens.add(Token.simple("*"));
+                case '/' -> tokens.add(Token.simple("/"));
+                case '(' -> tokens.add(Token.simple("("));
+                case ')' -> tokens.add(Token.simple(")"));
+                default -> {
+                    // 其他字符暂不处理，直接跳过
+                }
+            }
+
+            index++;
+        }
+        // 最后加入 EOF 标记
+        tokens.add(Token.eof());
     }
 
     /**
@@ -53,7 +120,7 @@ public class LexicalAnalyzer {
         // 词法分析过程可以使用 Stream 或 Iterator 实现按需分析
         // 亦可以直接分析完整个文件
         // 总之实现过程能转化为一列表即可
-        throw new NotImplementedException();
+        return tokens;
     }
 
     public void dumpTokens(String path) {
@@ -62,6 +129,17 @@ public class LexicalAnalyzer {
             StreamSupport.stream(getTokens().spliterator(), false).map(Token::toString).toList()
         );
     }
+
+    private boolean isStart(char ch) {
+        return Character.isLetter(ch) || ch == '_';
+    }
+
+    private boolean isPart(char ch) {
+        return Character.isLetterOrDigit(ch) || ch == '_';
+    }
+    // 源代码是字符串，tokens是列表
+    private String sourceCode = "";
+    private List<Token> tokens = new ArrayList<>();
 
 
 }
